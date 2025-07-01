@@ -5,15 +5,26 @@ onmessage = async function (e) {
 
   try {
     await init();
+
     const {
       program_hash,
       cycles,
       stack_output,
       trace_len,
-      overflow_addrs,
       proof
     } = prove_program(code, inputs);
-    const overflow = overflow_addrs ? overflow_addrs.toString() : '[]';
+
+    // Helper to convert BigInt to number safely
+    const bigintToNumber = (x) =>
+      typeof x === 'bigint' ? Number(x) : x;
+
+    // Ensure stack_output is a standard array with numbers
+    const formattedStackOutput = Array.from(stack_output ?? []).map(bigintToNumber);
+
+    const outputObj = {
+      stack_output: formattedStackOutput,
+      trace_len: trace_len
+    };
 
     postMessage({
       success: true,
@@ -23,13 +34,9 @@ onmessage = async function (e) {
           cycles,
           trace_len
         },
-        output: `{
-            "stack_output" : [${stack_output.toString()}],
-            "overflow_addrs" : [${overflow}],
-            "trace_len" : ${trace_len}
-          }`,
+        output: JSON.stringify(outputObj, null, 2),
         proof,
-        stackOutput: stack_output.toString()
+        stackOutput: formattedStackOutput.toString()
       }
     });
   } catch (error) {

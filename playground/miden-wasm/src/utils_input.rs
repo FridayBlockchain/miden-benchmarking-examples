@@ -19,7 +19,6 @@ const SIMPLE_SMT_DEPTH: u8 = u64::BITS as u8;
 pub struct Outputs {
     pub stack_output: Vec<u64>,
     pub trace_len: Option<usize>,
-    pub overflow_addrs: Option<Vec<u64>>,
     pub proof: Option<Vec<u8>>,
 }
 

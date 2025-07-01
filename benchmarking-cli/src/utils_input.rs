@@ -12,7 +12,6 @@ use miden_vm::{
 pub struct Outputs {
     pub stack_output: Vec<u64>,
     pub trace_len: Option<usize>,
-    pub overflow_addrs: Option<Vec<u64>>,
     pub proof: Option<Vec<u8>>,
 }
 
@@ -247,7 +246,6 @@ fn test_parse_output() {
     let output_str: &str = r#"
     {
         "stack_output": [3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        "overflow_addrs": [0, 1],
         "trace_len": 1024
     }"#;
 
@@ -260,5 +258,4 @@ fn test_parse_output() {
         output.stack(),
         vec![3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     );
-    assert_eq!(output.overflow_addrs(), vec![0, 1]);
 }
