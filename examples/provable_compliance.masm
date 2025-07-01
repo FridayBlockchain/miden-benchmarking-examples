@@ -26,7 +26,7 @@ begin
         # Check if the first entry is equal to the target account ID
         # If the target account ID is within the list of sanctioned addresses,
         # the program will stop and return the error code 666
-        eq assertz.err=666
+        eq assertz.err="sanctioned address"
     end
 
     # The program didn't stop, so the target account ID is not within the

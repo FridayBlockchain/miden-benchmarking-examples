@@ -168,7 +168,6 @@ export const formatBeautifyNumbersArray = (inputString: any) => {// eslint-disab
 
 const outputSchema = yup.object().shape({
   stack_output: yup.array().of(yup.number().integer().min(0)).required(),
-  overflow_addrs: yup.array().of(yup.number().integer().min(0)).notRequired(),
   trace_len: yup.number().integer().min(0).optional()
 });
 

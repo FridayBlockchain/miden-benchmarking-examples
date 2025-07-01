@@ -11,7 +11,7 @@ const examples = [
   //'game_of_life_4x4',
   'catalan',
   'dft',
-  'shamir_secret_share',
+  //'shamir_secret_share',
   'provable_compliance',
   'collatz',
   'comparison',

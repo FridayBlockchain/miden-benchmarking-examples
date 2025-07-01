@@ -1,9 +1,11 @@
 use crate::utils_input::Inputs;
 use crate::utils_program::{MidenProgram, DEBUG_ON};
 use miden_vm::{VmState, VmStateIterator, DefaultHost, MemAdviceProvider};
+use miden_processor::{SourceManager, DefaultSourceManager};
 use wasm_bindgen::prelude::*;
 use alloc::string::String;
 use alloc::vec::Vec;
+use alloc::sync::Arc;
 
 // This is the main struct that will be exported to JS
 // It will be used to execute debug commands against the VM
@@ -53,10 +55,14 @@ impl DebugExecutor {
 
         let mut host = DefaultHost::new(MemAdviceProvider::from(inputs.advice_provider));
 
+        let source_manager = Arc::new(DefaultSourceManager::default()) as Arc<dyn SourceManager>;
+
+
         let mut vm_state_iter = miden_vm::execute_iter(
             &program.program.unwrap(),
             inputs.stack_inputs,
             &mut host,
+            source_manager,
         );
 
         let vm_state = vm_state_iter
@@ -153,7 +159,7 @@ impl DebugExecutor {
     fn vm_state_to_output(&self) -> DebugOutput {
         let mut memory: Vec<(u64, u64)> = Vec::new();
         for &(address, mem) in self.vm_state.memory.iter() {
-            memory.push((address, mem.as_int()))
+            memory.push((u32::from(address) as u64, mem.as_int()))
         };
         println!("mem_interal: {:?}", memory);
 

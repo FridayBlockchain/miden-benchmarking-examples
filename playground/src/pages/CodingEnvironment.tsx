@@ -59,6 +59,12 @@ import InfoSectionLayout from './InfoSectionLayout';
 
 const worker = new Worker(new URL('./proveWorker.js', import.meta.url));
 
+const originalToastError = toast.error;
+toast.error = (...args) => {
+  console.trace('[toast.error called]', ...args);
+  return originalToastError(...args);
+};
+
 export default function CodingEnvironment(): JSX.Element {
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -621,26 +627,34 @@ export default function CodingEnvironment(): JSX.Element {
    */
   const verifyProgram = async () => {
     disableDebug();
+    console.log('Output being passed:', output);
     init().then(() => {
       if (!proof) {
         setOutput('There is no proof to verify. \nDid you prove the program?');
-        toast.error('Verification failed');
+        toast.error('Verification failed - no proof');
         return;
       }
       const inputCheck = checkInputs(inputs);
       const outputCheck = checkOutputs(output);
       if (!inputCheck.isValid) {
         setOutput(inputCheck.errorMessage);
-        toast.error('Verification failed');
+        toast.error('Verification failed - Check inputs');
         return;
       } else if (!outputCheck.isValid) {
         setOutput(outputCheck.errorMessage);
-        toast.error('Verification failed');
+        toast.error('Verification failed - Check Outputs');
         return;
       }
+
       try {
+        console.log('Calling verify_program with:', { code, inputs, output, proof });
         const start = Date.now();
         const result = verify_program(code, inputs, output, proof);
+
+        if (typeof result === 'undefined') {
+          throw new Error('verify_program returned undefined');
+        }
+
         toast.success(
           'Verification successful in ' +
             (Date.now() - start) +
@@ -648,10 +662,16 @@ export default function CodingEnvironment(): JSX.Element {
             result +
             'bits.'
         );
-      } catch (error) {
-        setOutput(`Error: ${error}`);
-        toast.error('Verification failed');
-      }
+      } catch (error: unknown) {
+          let msg = 'Unknown error';
+          if (error instanceof Error) msg = error.message;
+          else if (typeof error === 'string') msg = error;
+          else msg = JSON.stringify(error);
+
+          console.error('Verification failed:', error);
+          setOutput(`Error: ${msg}`);
+          toast.error('Verification failed - check console');
+        }
     });
   };
 

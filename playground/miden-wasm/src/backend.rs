@@ -4,9 +4,10 @@ use crate::types::Outputs;
 
 use miden_stdlib::StdLibrary;
 use miden_vm::{DefaultHost, ProvingOptions, ExecutionProof};
-use miden_processor::ExecutionOptions;
+use miden_processor::{ExecutionOptions, SourceManager, DefaultSourceManager};
 use alloc::string::String;
 use alloc::vec::Vec;
+use alloc::sync::Arc;
 
 const MAX_STACK_LENGTH: usize = 40;
 
@@ -22,6 +23,8 @@ pub fn run_program_native(code: &str, inputs_str: &str) -> Result<Outputs, Strin
     let mut host = DefaultHost::new(input_data.advice_provider.clone());
     host.load_mast_forest(StdLibrary::default().mast_forest().clone()).unwrap();
 
+    let source_manager = Arc::new(DefaultSourceManager::default()) as Arc<dyn SourceManager>;
+
     let exec_options = ExecutionOptions::default();
 
     let trace = miden_vm::execute(
@@ -29,6 +32,7 @@ pub fn run_program_native(code: &str, inputs_str: &str) -> Result<Outputs, Strin
         stack_inputs,
         &mut host,
         exec_options,
+        source_manager,
     )
     .map_err(|e| format!("{e:?}"))?;
 
@@ -51,11 +55,15 @@ pub fn prove_program_native(code: &str, inputs_str: &str) -> Result<Outputs, Str
     let proof_options = ProvingOptions::default();
     let mut host = DefaultHost::new(inputs.advice_provider.clone());
 
+    let source_manager = Arc::new(DefaultSourceManager::default()) as Arc<dyn SourceManager>;
+
+
     let (output, proof) = miden_vm::prove(
         &program.program.unwrap(),
         inputs.stack_inputs.clone(),
         &mut host,
         proof_options,
+        source_manager,
     )
     .map_err(|e| format!("{e:?}"))?;
 

@@ -85,18 +85,17 @@ Want to know more? [Here](https://0xmiden.github.io/miden-vm/user_docs/assembly/
 ```json
 {
   "stack_output": [3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  "overflow_addrs": [0, 1],
   "trace_len": 1024
 }
 ```
 
-The `stack_output` represents our final state. The `overflow_addrs` is needed to reconstruct the state the is not shown in the `stack_output`.
+The `stack_output` represents our final state of the stack.
 
 The **trace_len** tells you how complex the computation is - it is the length of the execution trace. We need to always have an execution trace that is a power of 2 and >1024.
 
 The Outputs must also be a valid JSON (if you want to verify) and it can only contain numbers.
 
-You can also test the VM by proving a program and tampering with the Outputs. See if you can still verify the set of (`operand_stack`, `code`, `stack_output` and `overflow_addrs`)
+You can also test the VM by proving a program and tampering with the Outputs. See if you can still verify the set of (`operand_stack`, `code`, and `stack_output`)
 
 Want to know more? [Here](https://0xmiden.github.io/miden-vm/user_docs/assembly/main.html).
 
@@ -172,4 +171,4 @@ You need to prove before you can verify.
 ![](https://github.com/gubloon/examples/assets/7201911/da4cbff7-aa43-44fa-b8ad-158debf77e58)
 *On mobile, the option appears on top of the code editor, next to the "prove" option.*
 
-Here you can verify that the given `operand_stack` and `code` produce indeed the given `stack_output` and `overflow_addrs`. Verify will verify a previously generated proof of execution for a given program. For the verification the proof is needed.
+Here you can verify that the given `operand_stack` and `code` produce indeed the given `stack_output`. Verify will verify a previously generated proof of execution for a given program. For the verification the proof is needed.
