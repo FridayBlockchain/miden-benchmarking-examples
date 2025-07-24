@@ -1,0 +1,366 @@
+use.std::sys
+
+# Memory Layout:
+# Protocol pool balances: 100 + asset_id
+# User asset balances: 1000 + borrower_addr + asset_id  
+# User borrow ledger: 2000 + borrower_addr + asset_id
+# User lending ledger: 3000 + lender_addr + asset_id
+# Interest rates: 4000 + asset_id
+# Collateral ratios: 5000 + asset_id
+
+# =============================================================================
+# UTILITY PROCEDURES
+# =============================================================================
+
+proc.load_protocol_pool
+    # [asset_id, ...]
+    push.100
+    add
+    mem_load            # [pool_balance, ...]
+end
+
+proc.store_protocol_pool
+    # [new_balance, asset_id, ...]
+    push.100
+    add
+    mem_store
+end
+
+proc.load_user_balance
+    # [user_addr, asset_id, ...]
+    push.1000
+    add
+    add
+    mem_load
+end
+
+proc.store_user_balance
+    # [new_balance, user_addr, asset_id, ...]
+    push.1000
+    add
+    add
+    mem_store
+end
+
+proc.load_user_borrow_amount
+    # [user_addr, asset_id, ...]
+    push.2000
+    add
+    add
+    mem_load
+end
+
+proc.store_user_borrow_amount
+    # [new_amount, user_addr, asset_id, ...]
+    push.2000
+    add
+    add
+    mem_store
+end
+
+proc.load_user_lend_amount
+    # [user_addr, asset_id, ...]
+    push.3000
+    add
+    add
+    mem_load
+end
+
+proc.store_user_lend_amount
+    # [new_amount, user_addr, asset_id, ...]
+    push.3000
+    add
+    add
+    mem_store
+end
+
+proc.load_interest_rate
+    # [asset_id, ...]
+    push.4000
+    add
+    mem_load
+end
+
+proc.load_collateral_ratio
+    # [asset_id, ...]
+    push.5000
+    add
+    mem_load
+end
+
+# =============================================================================
+# LENDING PROCEDURES
+# =============================================================================
+
+proc.check_lend_eligibility
+    # [lender_addr, asset_id, lend_amount, ...]
+    # For now, always return true (1) for testing
+    push.1
+end
+
+proc.process_lending
+    # [lender_addr, asset_id, lend_amount, ...]
+    
+    # Deduct from user balance
+    dup.2               # [asset_id, lender_addr, asset_id, lend_amount, ...]
+    dup.3               # [lender_addr, asset_id, lender_addr, asset_id, lend_amount, ...]
+    exec.load_user_balance
+    # [user_balance, lender_addr, asset_id, lend_amount, ...]
+    dup.3               # [lend_amount, user_balance, lender_addr, asset_id, lend_amount, ...]
+    sub                 # [new_user_balance, lender_addr, asset_id, lend_amount, ...]
+    dup.2               # [asset_id, new_user_balance, lender_addr, asset_id, lend_amount, ...]
+    dup.3               # [lender_addr, asset_id, new_user_balance, lender_addr, asset_id, lend_amount, ...]
+    exec.store_user_balance
+
+    # Add to protocol pool
+    dup.1               # [asset_id, lender_addr, asset_id, lend_amount, ...]
+    exec.load_protocol_pool
+    # [pool_balance, lender_addr, asset_id, lend_amount, ...]
+    dup.3               # [lend_amount, pool_balance, lender_addr, asset_id, lend_amount, ...]
+    add                 # [new_pool_balance, lender_addr, asset_id, lend_amount, ...]
+    dup.2               # [asset_id, new_pool_balance, lender_addr, asset_id, lend_amount, ...]
+    exec.store_protocol_pool
+
+    # Update user lending ledger
+    dup.2               # [asset_id, lender_addr, asset_id, lend_amount, ...]
+    dup.3               # [lender_addr, asset_id, lender_addr, asset_id, lend_amount, ...]
+    exec.load_user_lend_amount
+    # [current_lend, lender_addr, asset_id, lend_amount, ...]
+    dup.3               # [lend_amount, current_lend, lender_addr, asset_id, lend_amount, ...]
+    add                 # [new_lend_amount, lender_addr, asset_id, lend_amount, ...]
+    dup.2               # [asset_id, new_lend_amount, lender_addr, asset_id, lend_amount, ...]
+    dup.3               # [lender_addr, asset_id, new_lend_amount, lender_addr, asset_id, lend_amount, ...]
+    exec.store_user_lend_amount
+end
+
+# =============================================================================
+# BORROWING PROCEDURES  
+# =============================================================================
+
+proc.check_borrow_eligibility
+    # [borrower_addr, asset_id, borrow_amount, ...]
+    
+    # Check protocol has sufficient liquidity
+    dup.1               # [asset_id, borrower_addr, asset_id, borrow_amount, ...]
+    exec.load_protocol_pool
+    # [pool_balance, borrower_addr, asset_id, borrow_amount, ...]
+    dup.3               # [borrow_amount, pool_balance, borrower_addr, asset_id, borrow_amount, ...]
+    gte                 # pool_balance >= borrow_amount?
+end
+
+proc.process_borrowing
+    # [borrower_addr, asset_id, borrow_amount, ...]
+    
+    # Deduct from protocol pool
+    dup.1               # [asset_id, borrower_addr, asset_id, borrow_amount, ...]
+    exec.load_protocol_pool
+    # [pool_balance, borrower_addr, asset_id, borrow_amount, ...]
+    dup.3               # [borrow_amount, pool_balance, borrower_addr, asset_id, borrow_amount, ...]
+    sub                 # [new_pool_balance, borrower_addr, asset_id, borrow_amount, ...]
+    dup.2               # [asset_id, new_pool_balance, borrower_addr, asset_id, borrow_amount, ...]
+    exec.store_protocol_pool
+
+    # Add to borrower balance
+    dup.2               # [asset_id, borrower_addr, asset_id, borrow_amount, ...]
+    dup.3               # [borrower_addr, asset_id, borrower_addr, asset_id, borrow_amount, ...]
+    exec.load_user_balance
+    # [borrower_balance, borrower_addr, asset_id, borrow_amount, ...]
+    dup.3               # [borrow_amount, borrower_balance, borrower_addr, asset_id, borrow_amount, ...]
+    add                 # [new_borrower_balance, borrower_addr, asset_id, borrow_amount, ...]
+    dup.2               # [asset_id, new_borrower_balance, borrower_addr, asset_id, borrow_amount, ...]
+    dup.3               # [borrower_addr, asset_id, new_borrower_balance, borrower_addr, asset_id, borrow_amount, ...]
+    exec.store_user_balance
+
+    # Update borrow ledger
+    dup.2               # [asset_id, borrower_addr, asset_id, borrow_amount, ...]
+    dup.3               # [borrower_addr, asset_id, borrower_addr, asset_id, borrow_amount, ...]
+    exec.load_user_borrow_amount
+    # [current_debt, borrower_addr, asset_id, borrow_amount, ...]
+    dup.3               # [borrow_amount, current_debt, borrower_addr, asset_id, borrow_amount, ...]
+    add                 # [new_debt, borrower_addr, asset_id, borrow_amount, ...]
+    dup.2               # [asset_id, new_debt, borrower_addr, asset_id, borrow_amount, ...]
+    dup.3               # [borrower_addr, asset_id, new_debt, borrower_addr, asset_id, borrow_amount, ...]
+    exec.store_user_borrow_amount
+end
+
+# =============================================================================
+# REPAYMENT PROCEDURES
+# =============================================================================
+
+proc.check_repay_eligibility
+    # [borrower_addr, asset_id, repay_amount, ...]
+    
+    # Check user has sufficient balance to repay
+    dup.2               # [asset_id, borrower_addr, asset_id, repay_amount, ...]
+    dup.3               # [borrower_addr, asset_id, borrower_addr, asset_id, repay_amount, ...]
+    exec.load_user_balance
+    # [user_balance, borrower_addr, asset_id, repay_amount, ...]
+    dup.3               # [repay_amount, user_balance, borrower_addr, asset_id, repay_amount, ...]
+    gte                 # user_balance >= repay_amount?
+    
+    # Also check user has outstanding debt
+    dup.2               # [asset_id, borrower_addr, asset_id, repay_amount, ...]
+    dup.3               # [borrower_addr, asset_id, borrower_addr, asset_id, repay_amount, ...]
+    exec.load_user_borrow_amount
+    # [user_debt, borrower_addr, asset_id, repay_amount, ...]
+    push.0
+    gt                  # user_debt > 0?
+    and                 # Both conditions must be true
+end
+
+proc.process_repayment
+    # [borrower_addr, asset_id, repay_amount, ...]
+    
+    # Deduct from user balance
+    dup.2               # [asset_id, borrower_addr, asset_id, repay_amount, ...]
+    dup.3               # [borrower_addr, asset_id, borrower_addr, asset_id, repay_amount, ...]
+    exec.load_user_balance
+    # [user_balance, borrower_addr, asset_id, repay_amount, ...]
+    dup.3               # [repay_amount, user_balance, borrower_addr, asset_id, repay_amount, ...]
+    sub                 # [new_user_balance, borrower_addr, asset_id, repay_amount, ...]
+    dup.2               # [asset_id, new_user_balance, borrower_addr, asset_id, repay_amount, ...]
+    dup.3               # [borrower_addr, asset_id, new_user_balance, borrower_addr, asset_id, repay_amount, ...]
+    exec.store_user_balance
+
+    # Add back to protocol pool
+    dup.1               # [asset_id, borrower_addr, asset_id, repay_amount, ...]
+    exec.load_protocol_pool
+    # [pool_balance, borrower_addr, asset_id, repay_amount, ...]
+    dup.3               # [repay_amount, pool_balance, borrower_addr, asset_id, repay_amount, ...]
+    add                 # [new_pool_balance, borrower_addr, asset_id, repay_amount, ...]
+    dup.2               # [asset_id, new_pool_balance, borrower_addr, asset_id, repay_amount, ...]
+    exec.store_protocol_pool
+
+    # Reduce debt in borrow ledger
+    dup.2               # [asset_id, borrower_addr, asset_id, repay_amount, ...]
+    dup.3               # [borrower_addr, asset_id, borrower_addr, asset_id, repay_amount, ...]
+    exec.load_user_borrow_amount
+    # [current_debt, borrower_addr, asset_id, repay_amount, ...]
+    dup.3               # [repay_amount, current_debt, borrower_addr, asset_id, repay_amount, ...]
+    sub                 # [new_debt, borrower_addr, asset_id, repay_amount, ...]
+    dup.2               # [asset_id, new_debt, borrower_addr, asset_id, repay_amount, ...]
+    dup.3               # [borrower_addr, asset_id, new_debt, borrower_addr, asset_id, repay_amount, ...]
+    exec.store_user_borrow_amount
+end
+
+# =============================================================================
+# WITHDRAWAL PROCEDURES  
+# =============================================================================
+
+proc.check_withdraw_eligibility
+    # [lender_addr, asset_id, withdraw_amount, ...]
+    
+    # Check user has sufficient lending balance
+    dup.2               # [asset_id, lender_addr, asset_id, withdraw_amount, ...]
+    dup.3               # [lender_addr, asset_id, lender_addr, asset_id, withdraw_amount, ...]
+    exec.load_user_lend_amount
+    # [lend_balance, lender_addr, asset_id, withdraw_amount, ...]
+    dup.3               # [withdraw_amount, lend_balance, lender_addr, asset_id, withdraw_amount, ...]
+    gte                 # lend_balance >= withdraw_amount?
+    
+    # Check protocol has sufficient liquidity
+    dup.2               # [asset_id, lender_addr, asset_id, withdraw_amount, ...]
+    exec.load_protocol_pool
+    # [pool_balance, lender_addr, asset_id, withdraw_amount, ...]
+    dup.3               # [withdraw_amount, pool_balance, lender_addr, asset_id, withdraw_amount, ...]
+    gte                 # pool_balance >= withdraw_amount?
+    and                 # Both conditions must be true
+end
+
+proc.process_withdrawal
+    # [lender_addr, asset_id, withdraw_amount, ...]
+    
+    # Deduct from protocol pool
+    dup.1               # [asset_id, lender_addr, asset_id, withdraw_amount, ...]
+    exec.load_protocol_pool
+    # [pool_balance, lender_addr, asset_id, withdraw_amount, ...]
+    dup.3               # [withdraw_amount, pool_balance, lender_addr, asset_id, withdraw_amount, ...]
+    sub                 # [new_pool_balance, lender_addr, asset_id, withdraw_amount, ...]
+    dup.2               # [asset_id, new_pool_balance, lender_addr, asset_id, withdraw_amount, ...]
+    exec.store_protocol_pool
+
+    # Add to user balance
+    dup.2               # [asset_id, lender_addr, asset_id, withdraw_amount, ...]
+    dup.3               # [lender_addr, asset_id, lender_addr, asset_id, withdraw_amount, ...]
+    exec.load_user_balance
+    # [user_balance, lender_addr, asset_id, withdraw_amount, ...]
+    dup.3               # [withdraw_amount, user_balance, lender_addr, asset_id, withdraw_amount, ...]
+    add                 # [new_user_balance, lender_addr, asset_id, withdraw_amount, ...]
+    dup.2               # [asset_id, new_user_balance, lender_addr, asset_id, withdraw_amount, ...]
+    dup.3               # [lender_addr, asset_id, new_user_balance, lender_addr, asset_id, withdraw_amount, ...]
+    exec.store_user_balance
+
+    # Reduce lending ledger
+    dup.2               # [asset_id, lender_addr, asset_id, withdraw_amount, ...]
+    dup.3               # [lender_addr, asset_id, lender_addr, asset_id, withdraw_amount, ...]
+    exec.load_user_lend_amount
+    # [current_lend, lender_addr, asset_id, withdraw_amount, ...]
+    dup.3               # [withdraw_amount, current_lend, lender_addr, asset_id, withdraw_amount, ...]
+    sub                 # [new_lend_amount, lender_addr, asset_id, withdraw_amount, ...]
+    dup.2               # [asset_id, new_lend_amount, lender_addr, asset_id, withdraw_amount, ...]
+    dup.3               # [lender_addr, asset_id, new_lend_amount, lender_addr, asset_id, withdraw_amount, ...]
+    exec.store_user_lend_amount
+end
+
+# =============================================================================
+# MAIN CONTRACT ENTRY POINTS
+# =============================================================================
+
+# Entry point for lending
+# Expected stack: [operation_type, user_addr, asset_id, amount, ...]
+# operation_type: 1=lend, 2=borrow, 3=repay, 4=withdraw
+begin
+    # Route to appropriate operation
+    dup.3               # [operation_type, operation_type, user_addr, asset_id, amount, ...]
+    
+    # Check operation type and execute accordingly
+    push.1
+    eq
+    if.true
+        # Lending operation
+        drop            # Remove operation_type
+        exec.check_lend_eligibility
+        assert          # Halt if not eligible
+        exec.process_lending
+    else
+        dup.3           # [operation_type, operation_type, user_addr, asset_id, amount, ...]
+        push.2
+        eq
+        if.true
+            # Borrowing operation
+            drop
+            exec.check_borrow_eligibility
+            assert
+            exec.process_borrowing
+        else
+            dup.3       # [operation_type, operation_type, user_addr, asset_id, amount, ...]
+            push.3
+            eq
+            if.true
+                # Repayment operation
+                drop
+                exec.check_repay_eligibility
+                assert
+                exec.process_repayment
+            else
+                dup.3   # [operation_type, operation_type, user_addr, asset_id, amount, ...]
+                push.4
+                eq
+                if.true
+                    # Withdrawal operation
+                    drop
+                    exec.check_withdraw_eligibility
+                    assert
+                    exec.process_withdrawal
+                else
+                    # Invalid operation - force failure
+                    push.0
+                    assert
+                end
+            end
+        end
+    end
+
+    # Clean up stack
+    exec.sys::truncate_stack
+end
